@@ -228,6 +228,7 @@ quantile(data_sens$ln_mn_c, probs=c(0.25, 0.75))
 
 ### rerun this with 25th and 75th percentile 
 ## run mediation analysis 
+#astar and a value is to show the effect with change in exposure from astar (using 25th pct) value to a (using 75 pct)
 mediation.25.75 <- cmest(data = data_sens, model = "rb", 
                          outcome = "cognitive_raw", 
                          exposure = "ln_mn_c", mediator = "birthlength_c", EMint = TRUE,
