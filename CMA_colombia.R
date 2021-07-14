@@ -112,3 +112,140 @@ summary(mediation.int.m0)
 
 
 cmsens(object = mediation.int.m0, sens = "uc")
+
+######################################################
+##   Mediation Analysis Course - R Application      ##
+##   Bangladesh example                             ##
+######################################################
+
+
+## load in data 
+data_sens <- read.csv("sim_data_bangladesh.csv")
+
+######################################
+### QUESTION 1A ######################
+### traditional mediation analysis ###
+######################################
+
+## Total effect: just adjust for suspected confounder
+TE.fit <- lm(cognitive_raw ~ ln_mn_c + protein_c + female + approxage, data=data_sens)
+summary(TE.fit)
+## TE = -0.65445
+
+# Direct effect: add covariate and mediator w/o interaction
+out.fit.noint <- lm(cognitive_raw ~ ln_mn_c + birthlength_c + 
+                      protein_c + female + approxage, data=data_sens)
+summary(out.fit.noint)
+## direct effect (beta value of length)
+## -0.35228
+
+## use difference method to estimate the direct and indirect effects 
+## indirect effect : Total effect - direct effect
+## -0.65445 - (-0.35228) = -0.302
+
+## fit mediation model: Use mediator variable as the outcome instead actual outcome
+med.fit <- lm(birthlength_c ~ ln_mn_c + protein_c + female + approxage, data=data_sens)
+summary(med.fit)
+
+## use product method to estimate the direct and indirect effects 
+## direct effect 
+## -0.35228 (beta of length from mediation model)
+## indirect effect 
+#(beta of length from mediation model and beta of birth length from DE)
+##-0.349862*0.86369 = -0.302 
+## see this is exactly what we got with the difference method
+
+######################################
+### QUESTION 1B ######################
+######################################
+
+## fit outcome model WITH interaction
+out.fit <- lm(cognitive_raw ~ ln_mn_c * birthlength_c + protein_c + 
+                female + approxage, data=data_sens)
+summary(out.fit)
+## p-value for interaction = 0.02
+## the harmful effect of Mn is reduced at higher levels at birth length 
+## use R directly
+confint(out.fit)
+## or calculate this by "hand"
+## c(0.277738 - 1.96* 0.12058, 0.277738 + 1.96* 0.12058)
+### 95% CI is (0.04, 0.51)
+
+
+
+
+######################################
+### QUESTION 2A ######################
+######################################
+
+#install.packages("CMAverse")
+library(CMAverse)
+
+## run mediation analysis w/o interaction using cmest()
+mediation.noint <- cmest(data = data_sens, model = "rb", 
+                         outcome = "cognitive_raw", 
+                         exposure = "ln_mn_c", mediator = "birthlength_c", EMint = FALSE,
+                         basec = c("protein_c", "female", "approxage"), 
+                         mreg = list("linear"), yreg = "linear", mval = list(1),
+                         estimation = "paramfunc", inference = "delta")
+summary(mediation.noint)
+#plot(mediation.noint) +
+ #  theme(axis.text.x = element_text(angle = 45))
+
+## NIE = -0.302 
+## NDE = -0.352 
+## TE  = -0.654
+## the same as both the product and difference methods 
+
+######################################
+### QUESTION 2B ######################
+######################################
+
+## run mediation analysis including interaction and considering a change from a*=0 to a=1
+#EMint = true function allows exposure mediator interaction
+mediation.0.1 <- cmest(data = data_sens, model = "rb", 
+                       outcome = "cognitive_raw", 
+                       exposure = "ln_mn_c", mediator = "birthlength_c", EMint = TRUE,
+                       basec = c("protein_c", "female", "approxage"), 
+                         mreg = list("linear"), yreg = "linear",
+                         astar = 0, a = 1, mval = list(1),
+                         estimation = "paramfunc", inference = "delta")
+
+summary(mediation.0.1)
+#plot(mediation.0.1) +
+ #  theme(axis.text.x = element_text(angle = 45))
+
+## NIE = tnie = -0.392
+## NDE = pnde = -0.356
+## TE  = -0.747
+
+######################################
+### QUESTION 2C ######################
+######################################
+
+## determine the 25th and 75th percentiles of manganese exposure 
+quantile(data_sens$ln_mn_c, probs=c(0.25, 0.75))
+
+### rerun this with 25th and 75th percentile 
+## run mediation analysis 
+mediation.25.75 <- cmest(data = data_sens, model = "rb", 
+                         outcome = "cognitive_raw", 
+                         exposure = "ln_mn_c", mediator = "birthlength_c", EMint = TRUE,
+                         basec = c("protein_c", "female", "approxage"), 
+                         mreg = list("linear"), yreg = "linear",
+                         astar = -0.61, a = 0.71, mval = list(1),
+                         estimation = "paramfunc", inference = "delta")
+summary(mediation.25.75)
+#plot(mediation.25.75) +
+ #  theme(axis.text.x = element_text(angle = 45))
+
+## NIE = -0.480
+## NDE = -0.391 
+## TE  = -0.871
+## PM  =  0.551 (from output)
+## -0.480/-0.871 = 0.551
+
+#Use the function cmsense to assess sensitivity to unmeasured confounding
+
+cmsens(object = mediation.25.75, sens = "uc")
+
